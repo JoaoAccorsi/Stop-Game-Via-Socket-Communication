@@ -1,46 +1,46 @@
 import socket
+import os
+from _thread import *
 import string
 import random
+import pickle
 
-##-----------------------------
-## Socket setup
-
-    # Create a TCP socket
-socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-    # Bind (IP address, port)
-socket.bind(("localhost", 2288))
-
-    # Socket waiting for a connection in port 2244...
-socket.listen()
-
-    # Accept the connection for the listen above, and return the connection and address (IP address + port used to the connection)
-connection, address = socket.accept()
-
-##-----------------------------
-## Game setup
+ServerSideSocket = socket.socket()
+ThreadCount = 0
+ServerSideSocket.bind(('localhost', 6002))
 
 alphabet_list = list(string.ascii_uppercase)
 raffled_letter = alphabet_list[random.randrange(1, 26)]
 encodedMessage = bytes(raffled_letter, 'utf-8')
 
-cont = 0
+print('Socket is listening..')
+ServerSideSocket.listen()
 
-##-----------------------------
-## Game setup
+def multi_threaded_client(connection):
+    initial_send = { 'letter': raffled_letter, 'identifier': alphabet_list[ThreadCount - 1] }
+    data = pickle.dumps(initial_send)
+    connection.send(data)
+    
+    while True:
+        data = connection.recv(4096)
+        client_answer = pickle.loads(data)
+        if not client_answer: 
+            break
+        print(client_answer)
+    connection.close()
 
 while True:
+    client, address = ServerSideSocket.accept()
+    print('Connected to: ' + address[0] + ':' + str(address[1]))
+    ThreadCount += 1
+    start_new_thread(multi_threaded_client, (client, ))
+    print('Thread Number: ' + str(ThreadCount))
 
-        # Send the raffled letter to the client
-    if (cont == 0):
-        connection.send(encodedMessage)
+    # TRANCA!
 
-        # Message received from the client
-    receivedData = connection.recv(1024)
-    
-    if not receivedData:
-        break
-    print("Message from host %s: %s", address, receivedData.decode())
-
-    cont = cont + 1
-connection.close()
+    # receivedData = client.recv(1024)
+    # if receivedData: 
+    #     ServerSideSocket.close()
+    #     break
+    # print("Message from host %s: %s", address, receivedData.decode())
+ServerSideSocket.close()
