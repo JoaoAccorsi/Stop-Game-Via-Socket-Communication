@@ -1,9 +1,9 @@
 import socket
-import os
 from _thread import *
 import string
 import random
 import pickle
+import struct
 
 ServerSideSocket = socket.socket()
 ThreadCount = 0
@@ -12,12 +12,19 @@ ServerSideSocket.bind(('localhost', 6002))
 alphabet_list = list(string.ascii_uppercase)
 raffled_letter = alphabet_list[random.randrange(1, 26)]
 encodedMessage = bytes(raffled_letter, 'utf-8')
+first_client_to_send = ''
+identifiers_list = []
+identifiers_connection_dict = {}
 
 print('Socket is listening..')
 ServerSideSocket.listen()
 
 def multi_threaded_client(connection):
-    initial_send = { 'letter': raffled_letter, 'identifier': alphabet_list[ThreadCount - 1] }
+    client_identifier = alphabet_list[ThreadCount - 1]
+    identifiers_list.append(client_identifier)
+    identifiers_connection_dict[client_identifier] = connection
+
+    initial_send = { 'letter': raffled_letter, 'identifier': client_identifier }
     data = pickle.dumps(initial_send)
     connection.send(data)
     
@@ -27,6 +34,17 @@ def multi_threaded_client(connection):
         if not client_answer: 
             break
         print(client_answer)
+        global first_client_to_send
+        first_client_to_send = client_answer['identifier']
+
+        # for identifier in identifiers_list:
+        #     if identifier == first_client_to_send: continue
+        #     connection = identifiers_connection_dict[identifier]
+        #     packed_value = struct.pack('?', True)            
+        #     connection.send(packed_value)
+        #     data = connection.recv(4096)
+        #     other_answer = pickle.loads(data)
+        #     print(other_answer, '<<<<other answer')
     connection.close()
 
 while True:
