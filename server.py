@@ -12,14 +12,18 @@ ServerSideSocket.bind(('localhost', 6002))
 alphabet_list = list(string.ascii_uppercase)
 raffled_letter = alphabet_list[random.randrange(1, 26)]
 encodedMessage = bytes(raffled_letter, 'utf-8')
+encodedMessageForcedStop = bytes("Forced Stop!", 'utf-8')
 first_client_to_send = ''
 identifiers_list = []
 identifiers_connection_dict = {}
+counter = 0
 
 print('Socket is listening..')
 ServerSideSocket.listen()
 
 def multi_threaded_client(connection):
+    global counter
+
     client_identifier = alphabet_list[ThreadCount - 1]
     identifiers_list.append(client_identifier)
     identifiers_connection_dict[client_identifier] = connection
@@ -33,18 +37,21 @@ def multi_threaded_client(connection):
         client_answer = pickle.loads(data)
         if not client_answer: 
             break
-        print(client_answer)
+
+        print("\nNova Resposta:\n", client_answer)
         global first_client_to_send
         first_client_to_send = client_answer['identifier']
+        
+        # Notify the other clients only once after the first one asked Stop
+        if counter == 0:
+            counter = counter + 1
+            # One client has already asked stop, got the awnser from the other(s)
+            for i in range (len(identifiers_list)):
+                # Find the identifiers of the clients which have not asked stop, and sent message "Forced Stop!" for them
+                if first_client_to_send != identifiers_list[i]:         
+                    new_connection = identifiers_connection_dict[identifiers_list[i]]
+                    new_connection.send(encodedMessageForcedStop)
 
-        # for identifier in identifiers_list:
-        #     if identifier == first_client_to_send: continue
-        #     connection = identifiers_connection_dict[identifier]
-        #     packed_value = struct.pack('?', True)            
-        #     connection.send(packed_value)
-        #     data = connection.recv(4096)
-        #     other_answer = pickle.loads(data)
-        #     print(other_answer, '<<<<other answer')
     connection.close()
 
 while True:
