@@ -25,9 +25,15 @@ ServerSideSocket.listen()
 def score():
 
     print(client_answers_dict)
-    # https://pt.stackoverflow.com/questions/306986/buscar-um-valor-dentro-de-um-array-de-dicion%C3%A1rios
+    print("\n")
 
-
+    # Judge the Name
+    for i in range (len(client_answers_dict)):
+        first_dict = client_answers_dict[i]
+        name_value = first_dict["name"]
+        cep_value = first_dict["cep"]
+        print("name: ", name_value)
+        print("cep: ", cep_value)
 
 def multi_threaded_client(connection):
     global counter
@@ -60,6 +66,7 @@ def multi_threaded_client(connection):
                 if first_client_to_send != identifiers_list[i]:         
                     new_connection = identifiers_connection_dict[identifiers_list[i]]
                     new_connection.send(encodedMessageForcedStop)
+        print("\n")
         score()
 
     connection.close()
