@@ -17,9 +17,17 @@ first_client_to_send = ''
 identifiers_list = []
 identifiers_connection_dict = {}
 counter = 0
+client_answers_dict = []
 
 print('Socket is listening..')
 ServerSideSocket.listen()
+
+def score():
+
+    print(client_answers_dict)
+    # https://pt.stackoverflow.com/questions/306986/buscar-um-valor-dentro-de-um-array-de-dicion%C3%A1rios
+
+
 
 def multi_threaded_client(connection):
     global counter
@@ -41,6 +49,7 @@ def multi_threaded_client(connection):
         print("\nNova Resposta:\n", client_answer)
         global first_client_to_send
         first_client_to_send = client_answer['identifier']
+        client_answers_dict.append(client_answer)
         
         # Notify the other clients only once after the first one asked Stop
         if counter == 0:
@@ -51,6 +60,7 @@ def multi_threaded_client(connection):
                 if first_client_to_send != identifiers_list[i]:         
                     new_connection = identifiers_connection_dict[identifiers_list[i]]
                     new_connection.send(encodedMessageForcedStop)
+        score()
 
     connection.close()
 
