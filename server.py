@@ -3,7 +3,6 @@ from _thread import *
 import string
 import random
 import pickle
-import struct
 
 ServerSideSocket = socket.socket()
 ThreadCount = 0
@@ -18,25 +17,58 @@ identifiers_list = []
 identifiers_connection_dict = {}
 counter = 0
 client_answers_dict = []
+score_list = []
+flag = 0
+array_name = []
 
 print('Socket is listening..')
 ServerSideSocket.listen()
 
 def score():
+    has_equal = 0
+    number = 0
 
-    print(client_answers_dict)
+    print("client_answers_dict:\n", client_answers_dict)
     print("\n")
 
-    # Judge the Name
+    # user_answer_dictionary['name'] = name
+
+    # Fill the score_dictionary with the indentifiers 
+    for i in range (len(client_answers_dict)):
+        first_dict = client_answers_dict[i]
+        aux = first_dict["identifier"]
+        score_list.append({ 'identifier': aux, 'points': 0 })
+
+    # Fill an array with all the names
     for i in range (len(client_answers_dict)):
         first_dict = client_answers_dict[i]
         name_value = first_dict["name"]
-        cep_value = first_dict["cep"]
-        print("name: ", name_value)
-        print("cep: ", cep_value)
+        array_name.append(name_value)
+
+    # Judge the name
+    for i in range (len(client_answers_dict)):
+        first_dict = client_answers_dict[i]
+        name_value = first_dict["name"]
+        identifier_value = first_dict["identifier"]
+        for j in range (len(array_name)):
+            if (name_value == array_name[j]):
+                has_equal +=1
+        for k in range (len(score_list)):
+            if ((score_list[k]['identifier']) == identifier_value):
+                number = k
+        if (has_equal == 1):
+           score_list[number]['points'] += 10
+           has_equal = 0
+        else:
+            score_list[number]['points'] += 5
+            has_equal = 0
+
+    print(score_list)
+
+    print("\n")
 
 def multi_threaded_client(connection):
-    global counter
+    global counter,flag
 
     client_identifier = alphabet_list[ThreadCount - 1]
     identifiers_list.append(client_identifier)
@@ -49,6 +81,7 @@ def multi_threaded_client(connection):
     while True:
         data = connection.recv(4096)
         client_answer = pickle.loads(data)
+        
         if not client_answer: 
             break
 
@@ -59,15 +92,17 @@ def multi_threaded_client(connection):
         
         # Notify the other clients only once after the first one asked Stop
         if counter == 0:
-            counter = counter + 1
+            counter += 1
             # One client has already asked stop, got the awnser from the other(s)
             for i in range (len(identifiers_list)):
                 # Find the identifiers of the clients which have not asked stop, and sent message "Forced Stop!" for them
-                if first_client_to_send != identifiers_list[i]:         
+                if first_client_to_send != identifiers_list[i]:       
                     new_connection = identifiers_connection_dict[identifiers_list[i]]
                     new_connection.send(encodedMessageForcedStop)
-        print("\n")
-        score()
+
+        flag += 1
+        if (flag == 2):
+            score()
 
     connection.close()
 
