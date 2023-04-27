@@ -25,18 +25,11 @@ client_answers_list = []
 answers_keys = ['name', 'cep', 'food', 'object', 'team']
 score_dictionary = {}
 
-print('Socket is listening..')
+print('Socket is listening..' + "\n")
 ServerSideSocket.listen()
 
 def score():
-    has_equal = 0
     has_equal_answer = False
-    number = 0
-
-    print("client_answers_list:\n", client_answers_list)
-    print("\n")
-
-    # user_answer_dictionary['name'] = name
 
     # Fill the score_dictionary with the indentifiers 
     for i in range (len(client_answers_list)):
@@ -64,33 +57,13 @@ def score():
             else:
                 score_dictionary[client_identifier] += 10
                 has_equal_answer = False
-    # # Fill an array with all the names
-    # for i in range (len(client_answers_list)):
-    #     first_dict = client_answers_list[i]
-    #     name_value = first_dict["name"]
-    #     array_name.append(name_value)
 
-    # # Judge the name
-    # for i in range (len(client_answers_list)):
-    #     first_dict = client_answers_list[i]
-    #     name_value = first_dict["name"]
-    #     identifier_value = first_dict["identifier"]
-    #     for j in range (len(array_name)):
-    #         if (name_value == array_name[j]):
-    #             has_equal +=1
-    #     for k in range (len(score_list)):
-    #         if ((score_list[k]['identifier']) == identifier_value):
-    #             number = k
-    #     if (has_equal == 1):
-    #        score_list[number]['points'] += 10
-    #        has_equal = 0
-    #     else:
-    #         score_list[number]['points'] += 5
-    #         has_equal = 0
+    result()
 
-    print(score_list)
-    print(score_dictionary, '<<<<<<<>>>>>>>')
-    print("\n")
+def result():
+    print("\n-----\nFinal Result\n-----")
+    print("\nScore: ", score_dictionary)
+    print("\n\n")
 
 def multi_threaded_client(connection):
     global counter,flag
@@ -124,10 +97,6 @@ def multi_threaded_client(connection):
                 new_connection = identifiers_connection_dict[identifier]
                 new_connection.send(encodedMessageForcedStop)
 
-        # flag += 1
-        # if (flag == 2):
-        #     score()
-
     connection.close()
 
 def get_and_send_results():
@@ -138,27 +107,13 @@ def get_and_send_results():
     while ThreadCount != len(client_answers_list): continue
     print("We have all answers!")
     score()
-    # print(identifiers_answer_array)
-    # for identifier in identifiers_list:
-    #     identifier_connection = identifiers_connection_dict[identifier]
-    #     identifier_connection.send(bytes("your points!", 'utf-8'))
-    #     print("sent!") 
-
 
 while True:
     client, address = ServerSideSocket.accept()
     print('Connected to: ' + address[0] + ':' + str(address[1]))
     ThreadCount += 1
     start_new_thread(multi_threaded_client, (client, ))
-    print('Thread Number: ' + str(ThreadCount))
+    print('Thread Number: ' + str(ThreadCount) + "\n")
     
     if ThreadCount == 1:
         start_new_thread(get_and_send_results, ())
-    
-    # TRANCA!
-
-    # receivedData = client.recv(1024)
-    # if receivedData: 
-    #     ServerSideSocket.close()
-    #     break
-    # print("Message from host %s: %s", address, receivedData.decode())
