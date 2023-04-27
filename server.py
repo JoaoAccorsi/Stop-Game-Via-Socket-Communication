@@ -30,6 +30,7 @@ ServerSideSocket.listen()
 
 def score():
     has_equal = 0
+    has_equal_answer = False
     number = 0
 
     print("client_answers_list:\n", client_answers_list)
@@ -55,9 +56,14 @@ def score():
                     continue
                 client_to_compare_key_answer = client_to_compare_answer[key].lower()
                 if client_to_compare_key_answer == key_answer:
-                    score_dictionary[client_identifier] = score_dictionary[client_identifier] + 5
-                else:
-                    score_dictionary[client_identifier] = score_dictionary[client_identifier] + 10
+                    has_equal_answer = True
+                    break
+            if has_equal_answer:
+                score_dictionary[client_identifier] += 5
+                has_equal_answer = False
+            else:
+                score_dictionary[client_identifier] += 10
+                has_equal_answer = False
     # # Fill an array with all the names
     # for i in range (len(client_answers_list)):
     #     first_dict = client_answers_list[i]
