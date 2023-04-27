@@ -20,6 +20,10 @@ client_answers_dict = []
 score_list = []
 flag = 0
 array_name = []
+identifiers_answer_array = []
+client_answers_list = []
+answers_keys = ['name', 'cep', 'food', 'object', 'team']
+score_dictionary = {}
 
 print('Socket is listening..')
 ServerSideSocket.listen()
@@ -28,43 +32,58 @@ def score():
     has_equal = 0
     number = 0
 
-    print("client_answers_dict:\n", client_answers_dict)
+    print("client_answers_list:\n", client_answers_list)
     print("\n")
 
     # user_answer_dictionary['name'] = name
 
     # Fill the score_dictionary with the indentifiers 
-    for i in range (len(client_answers_dict)):
-        first_dict = client_answers_dict[i]
-        aux = first_dict["identifier"]
-        score_list.append({ 'identifier': aux, 'points': 0 })
+    for i in range (len(client_answers_list)):
+        first_dict = client_answers_list[i]
+        identifier = first_dict["identifier"]
+        score_list.append({ 'identifier': identifier, 'points': 0 })
+        score_dictionary[identifier] = 0
+    
+    for key in answers_keys:
+        for client_answer in client_answers_list:
+            client_identifier = client_answer["identifier"]
+            key_answer = client_answer[key].lower()
+            if key_answer == "" or key_answer[0] != raffled_letter.lower():
+                continue
+            for client_to_compare_answer in client_answers_list:
+                if client_to_compare_answer["identifier"] == client_answer["identifier"]:
+                    continue
+                client_to_compare_key_answer = client_to_compare_answer[key].lower()
+                if client_to_compare_key_answer == key_answer:
+                    score_dictionary[client_identifier] = score_dictionary[client_identifier] + 5
+                else:
+                    score_dictionary[client_identifier] = score_dictionary[client_identifier] + 10
+    # # Fill an array with all the names
+    # for i in range (len(client_answers_list)):
+    #     first_dict = client_answers_list[i]
+    #     name_value = first_dict["name"]
+    #     array_name.append(name_value)
 
-    # Fill an array with all the names
-    for i in range (len(client_answers_dict)):
-        first_dict = client_answers_dict[i]
-        name_value = first_dict["name"]
-        array_name.append(name_value)
-
-    # Judge the name
-    for i in range (len(client_answers_dict)):
-        first_dict = client_answers_dict[i]
-        name_value = first_dict["name"]
-        identifier_value = first_dict["identifier"]
-        for j in range (len(array_name)):
-            if (name_value == array_name[j]):
-                has_equal +=1
-        for k in range (len(score_list)):
-            if ((score_list[k]['identifier']) == identifier_value):
-                number = k
-        if (has_equal == 1):
-           score_list[number]['points'] += 10
-           has_equal = 0
-        else:
-            score_list[number]['points'] += 5
-            has_equal = 0
+    # # Judge the name
+    # for i in range (len(client_answers_list)):
+    #     first_dict = client_answers_list[i]
+    #     name_value = first_dict["name"]
+    #     identifier_value = first_dict["identifier"]
+    #     for j in range (len(array_name)):
+    #         if (name_value == array_name[j]):
+    #             has_equal +=1
+    #     for k in range (len(score_list)):
+    #         if ((score_list[k]['identifier']) == identifier_value):
+    #             number = k
+    #     if (has_equal == 1):
+    #        score_list[number]['points'] += 10
+    #        has_equal = 0
+    #     else:
+    #         score_list[number]['points'] += 5
+    #         has_equal = 0
 
     print(score_list)
-
+    print(score_dictionary, '<<<<<<<>>>>>>>')
     print("\n")
 
 def multi_threaded_client(connection):
@@ -85,26 +104,40 @@ def multi_threaded_client(connection):
         if not client_answer: 
             break
 
-        print("\nNova Resposta:\n", client_answer)
+        # print("\nNova Resposta:\n", client_answer)
         global first_client_to_send
         first_client_to_send = client_answer['identifier']
-        client_answers_dict.append(client_answer)
-        
+        client_answers_list.append(client_answer)        
         # Notify the other clients only once after the first one asked Stop
         if counter == 0:
             counter += 1
             # One client has already asked stop, got the awnser from the other(s)
-            for i in range (len(identifiers_list)):
+            for identifier in identifiers_list:
                 # Find the identifiers of the clients which have not asked stop, and sent message "Forced Stop!" for them
-                if first_client_to_send != identifiers_list[i]:       
-                    new_connection = identifiers_connection_dict[identifiers_list[i]]
-                    new_connection.send(encodedMessageForcedStop)
+                if first_client_to_send == identifier:continue       
+                new_connection = identifiers_connection_dict[identifier]
+                new_connection.send(encodedMessageForcedStop)
 
-        flag += 1
-        if (flag == 2):
-            score()
+        # flag += 1
+        # if (flag == 2):
+        #     score()
 
     connection.close()
+
+def get_and_send_results():
+    global client_answers_list
+    global ThreadCount
+
+    # Wait for all clients to send their answers
+    while ThreadCount != len(client_answers_list): continue
+    print("We have all answers!")
+    score()
+    # print(identifiers_answer_array)
+    # for identifier in identifiers_list:
+    #     identifier_connection = identifiers_connection_dict[identifier]
+    #     identifier_connection.send(bytes("your points!", 'utf-8'))
+    #     print("sent!") 
+
 
 while True:
     client, address = ServerSideSocket.accept()
@@ -112,7 +145,10 @@ while True:
     ThreadCount += 1
     start_new_thread(multi_threaded_client, (client, ))
     print('Thread Number: ' + str(ThreadCount))
-
+    
+    if ThreadCount == 1:
+        start_new_thread(get_and_send_results, ())
+    
     # TRANCA!
 
     # receivedData = client.recv(1024)
@@ -120,4 +156,3 @@ while True:
     #     ServerSideSocket.close()
     #     break
     # print("Message from host %s: %s", address, receivedData.decode())
-ServerSideSocket.close()
