@@ -98,19 +98,26 @@ def get_and_send_results():
     score()
     # get who is the winner!
     
-    winner = max(score_dictionary)
+    winner_arr = []
     winner_identifier = max(score_dictionary, key=score_dictionary.get)
+    winner_arr.append(winner_identifier)
+    winner_number_of_points = score_dictionary[winner_identifier]
+    # checking if there is any other identifier with the same amount of points
+    for key in score_dictionary:
+        if score_dictionary[key] == winner_number_of_points and key != winner_identifier:
+            winner_arr.append(key)
+
     for identifier in identifiers_list:
         results_dict = {
             'event': 'results',
+            'number_of_winners': len(winner_arr),
             'current_identifier_points': score_dictionary[identifier], 
-            'winner_identifier': winner_identifier, 
+            'winner_identifier': winner_arr, 
             "winner_points": score_dictionary[winner_identifier]
         }
         identifier_connection = identifiers_connection_dict[identifier]
         results_dict_data = pickle.dumps(results_dict)
         identifier_connection.send(results_dict_data)
-
 
 while True:
     client, address = ServerSideSocket.accept()

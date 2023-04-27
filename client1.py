@@ -1,6 +1,5 @@
 import socket  
 import pickle
-from sendAnswersToServerThread import SendAnswersToServerThread
 from keyboardEventsThread import KeyboardEventsThread
  
 socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)       # Create a TCP socket
@@ -54,22 +53,34 @@ while True:
   listen_to_keyboard_thread = KeyboardEventsThread(socket, user_answer_dictionary, identifier, send_stop_call)
   listen_to_keyboard_thread.start()
 
-  send_answers_to_server_thread = SendAnswersToServerThread(socket, send_users_answers, listen_to_keyboard_thread, identifier)
-  send_answers_to_server_thread.start()
-
-  while have_send_answer == False: continue
-  send_answers_to_server_thread.stop()
+  new_received_data = socket.recv(4096)
+  data = pickle.loads(new_received_data)
+  data_event = data['event']
+  data_identifier = data['finish_first_identifier']
+  if (data_event == "send_answers"):
+    if (data_identifier != identifier):
+      print("\nO outro cliente terminou! Pressione enter para ver os resultados")
+      listen_to_keyboard_thread.stop()
+    send_users_answers()
   listen_to_keyboard_thread.join()
-  send_answers_to_server_thread.join()
 
   results = socket.recv(4096)
   results_dict = pickle.loads(results)
-
   client_points = results_dict['current_identifier_points']
-  if results_dict['winner_identifier'] == identifier:
-    print("\nVocê obteve " + str(client_points) + " pontos e foi o vencedor!\n")
-  else:
-    print("Você obteve " + str(client_points) + " pontos e não foi o vencedor!")
-    print("Venceu o jogador " + results_dict['winner_identifier'] + " com " + str(results_dict['winner_points']) + " pontos.\n")
+  number_of_winners = results_dict['number_of_winners']
+
+  if number_of_winners >= 2:
+    winners = results_dict['winner_identifier']
+    if identifier in winners:
+      print("\nVocê obteve " + str(client_points) + " pontos e foi um dos vencedores!\n")
+    else:
+      print("Você obteve " + str(client_points) + " pontos e não foi um dos vencedores!")
+      print("Venceram os jogadores " + str(winners) + " com " + str(results_dict['winner_points']) + " pontos.\n")
+  else:    
+    if results_dict['winner_identifier'][0] == identifier:
+      print("\nVocê obteve " + str(client_points) + " pontos e foi o vencedor!\n")
+    else:
+      print("Você obteve " + str(client_points) + " pontos e não foi o vencedor!")
+      print("Venceu o jogador " + results_dict['winner_identifier'][0] + " com " + str(results_dict['winner_points']) + " pontos.\n")
   socket.close()
   break

@@ -1,5 +1,4 @@
 import socket
-import os
 from _thread import *
 
 ServerSideSocket = socket.socket()
