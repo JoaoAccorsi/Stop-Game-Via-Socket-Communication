@@ -1,8 +1,7 @@
 import socket  
 import pickle
 import threading
-import struct
-    
+
 socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # Create a TCP socket
 socket.connect(("localhost", 6002))                         # Connect to the socket created in the server
 
@@ -12,6 +11,23 @@ identifiers_thread_dict = {}
 identifiers_list = []
 
 def send_users_answers():
+
+  # Ensure that no empty values are sent for the server
+  if not "name" in user_answer_dictionary:
+    user_answer_dictionary['name'] = " "
+
+  if not "cep" in user_answer_dictionary:
+    user_answer_dictionary['cep'] = " "
+    
+  if not "food" in user_answer_dictionary:
+    user_answer_dictionary['food'] = " "
+
+  if not "object" in user_answer_dictionary:
+    user_answer_dictionary['object'] = " "
+
+  if not "team" in user_answer_dictionary:
+    user_answer_dictionary['team'] = " "
+
   data = pickle.dumps(user_answer_dictionary)
   socket.send(data)
 
@@ -44,9 +60,6 @@ while True:
     data = socket.recv(4096)
     initial_receive = pickle.loads(data)  
   counter = counter + 1
-
-  #data = socket.recv(4096)
-  #print(data)
 
   if not initial_receive:
     break
