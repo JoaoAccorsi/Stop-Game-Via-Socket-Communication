@@ -10,23 +10,22 @@ ServerSideSocket.bind(('localhost', 6002))
 
 alphabet_list = list(string.ascii_uppercase)
 raffled_letter = alphabet_list[random.randrange(1, 26)]
-encodedMessage = bytes(raffled_letter, 'utf-8')
-encodedMessageForcedStop = bytes("Forced Stop!", 'utf-8')
-first_client_to_send = ''
+encoded_send_anwser_event = bytes("send_answers", 'utf-8')
 identifiers_list = []
 identifiers_connection_dict = {}
-counter = 0
-client_answers_dict = []
-score_list = []
-flag = 0
-array_name = []
-identifiers_answer_array = []
+have_someone_called_stop = False
 client_answers_list = []
 answers_keys = ['name', 'cep', 'food', 'object', 'team']
 score_dictionary = {}
+first_client_to_finish = ''
 
 print('Socket is listening..' + "\n")
 ServerSideSocket.listen()
+
+def result():
+    print("\n-----\nFinal Result\n-----")
+    print("\nScore: ", score_dictionary)
+    print("\n\n")
 
 def score():
     has_equal_answer = False
@@ -35,7 +34,6 @@ def score():
     for i in range (len(client_answers_list)):
         first_dict = client_answers_list[i]
         identifier = first_dict["identifier"]
-        score_list.append({ 'identifier': identifier, 'points': 0 })
         score_dictionary[identifier] = 0
     
     for key in answers_keys:
@@ -60,14 +58,18 @@ def score():
 
     result()
 
-def result():
-    print("\n-----\nFinal Result\n-----")
-    print("\nScore: ", score_dictionary)
-    print("\n\n")
+def stop_event_control(data):
+    finish_first_identifier = data['identifier']
+    for identifier in identifiers_list:
+        new_connection = identifiers_connection_dict[identifier]
+        send_answers_dict = { 'event': 'send_answers', "finish_first_identifier": finish_first_identifier }
+        new_connection.send(pickle.dumps(send_answers_dict))
+    return
+
+def answers_control(client_answer):
+    client_answers_list.append(client_answer) 
 
 def multi_threaded_client(connection):
-    global counter,flag
-
     client_identifier = alphabet_list[ThreadCount - 1]
     identifiers_list.append(client_identifier)
     identifiers_connection_dict[client_identifier] = connection
@@ -75,29 +77,17 @@ def multi_threaded_client(connection):
     initial_send = { 'letter': raffled_letter, 'identifier': client_identifier }
     data = pickle.dumps(initial_send)
     connection.send(data)
-    
     while True:
-        data = connection.recv(4096)
-        client_answer = pickle.loads(data)
-        
-        if not client_answer: 
+        data_received = connection.recv(4096)
+        if not data_received: 
             break
 
-        # print("\nNova Resposta:\n", client_answer)
-        global first_client_to_send
-        first_client_to_send = client_answer['identifier']
-        client_answers_list.append(client_answer)        
-        # Notify the other clients only once after the first one asked Stop
-        if counter == 0:
-            counter += 1
-            # One client has already asked stop, got the awnser from the other(s)
-            for identifier in identifiers_list:
-                # Find the identifiers of the clients which have not asked stop, and sent message "Forced Stop!" for them
-                if first_client_to_send == identifier:continue       
-                new_connection = identifiers_connection_dict[identifier]
-                new_connection.send(encodedMessageForcedStop)
-
-    connection.close()
+        data = pickle.loads(data_received)
+        data_event = data['event']  
+        if data_event.decode() == "stop": 
+            stop_event_control(data)
+        else:
+            answers_control(data) 
 
 def get_and_send_results():
     global client_answers_list
@@ -105,8 +95,22 @@ def get_and_send_results():
 
     # Wait for all clients to send their answers
     while ThreadCount != len(client_answers_list): continue
-    print("We have all answers!")
     score()
+    # get who is the winner!
+    
+    winner = max(score_dictionary)
+    winner_identifier = max(score_dictionary, key=score_dictionary.get)
+    for identifier in identifiers_list:
+        results_dict = {
+            'event': 'results',
+            'current_identifier_points': score_dictionary[identifier], 
+            'winner_identifier': winner_identifier, 
+            "winner_points": score_dictionary[winner_identifier]
+        }
+        identifier_connection = identifiers_connection_dict[identifier]
+        results_dict_data = pickle.dumps(results_dict)
+        identifier_connection.send(results_dict_data)
+
 
 while True:
     client, address = ServerSideSocket.accept()

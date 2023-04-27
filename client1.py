@@ -1,58 +1,38 @@
 import socket  
 import pickle
-import threading
+from sendAnswersToServerThread import SendAnswersToServerThread
+from keyboardEventsThread import KeyboardEventsThread
+ 
+socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)       # Create a TCP socket
+socket.connect(("localhost", 6002))                              # Connect to the socket created in the server
 
-socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # Create a TCP socket
-socket.connect(("localhost", 6002))                         # Connect to the socket created in the server
-
-user_answer_dictionary = {}
+user_answer_dictionary = {
+  'name': " ",
+  'cep': " ",
+  'food': " ",
+  'object': " ",
+  'team': " "
+}
 have_send_answer = False
-identifiers_thread_dict = {}
-identifiers_list = []
+encoded_stop_event = bytes("stop", 'utf-8')
+encoded_send_answer_event = bytes("send_answers", 'utf-8')
 
 def send_users_answers():
+  global have_send_answer
 
-  # Ensure that no empty values are sent for the server
-  if not "name" in user_answer_dictionary:
-    user_answer_dictionary['name'] = " "
-
-  if not "cep" in user_answer_dictionary:
-    user_answer_dictionary['cep'] = " "
-    
-  if not "food" in user_answer_dictionary:
-    user_answer_dictionary['food'] = " "
-
-  if not "object" in user_answer_dictionary:
-    user_answer_dictionary['object'] = " "
-
-  if not "team" in user_answer_dictionary:
-    user_answer_dictionary['team'] = " "
-
+  user_answer_dictionary['event'] = encoded_send_answer_event
   data = pickle.dumps(user_answer_dictionary)
   socket.send(data)
-
-def listen_to_keyboard_inputs():
-  name = input("Nome: ")
-  user_answer_dictionary['name'] = name
-
-  cep = input("CEP: ")
-  user_answer_dictionary['cep'] = cep
-
-  food = input("Comida: ")
-  user_answer_dictionary['food'] = food
-
-  object = input("Objeto: ")
-  user_answer_dictionary['object'] = object
-
-  team = input("Time de futebol: ")
-  user_answer_dictionary['team'] = team
-
-  send_users_answers()
-  global have_send_answer
   have_send_answer = True
+  return
+
+def send_stop_call(identifier):
+  stop_call = { 'identifier': identifier, "event": encoded_stop_event }
+  data = pickle.dumps(stop_call)
+  socket.send(data)
+  return 
 
 counter = 0
-
   # Send the data from the client to the server
 while True:
     # Receive the identifier and the raffled letter initially sent
@@ -68,23 +48,28 @@ while True:
   letter = initial_receive['letter']
   
   user_answer_dictionary['identifier'] = identifier
+  print("Seu identificador é a letra: " + identifier)
   print("Letra sorteada: " + letter)
-
-  thread = threading.Thread(target = listen_to_keyboard_inputs)
-  thread.start()
-
-  identifiers_list.append(identifier)
-  identifiers_thread_dict[identifier] = thread
   
-    # The other client has asked Stop! Force this client to sent their currently awnsers
-  if have_send_answer == False:
-    new_received_data = socket.recv(1024)
-    if (new_received_data.decode() == "Forced Stop!"):
-      print("\nO outro cliente terminou")
-      thread = identifiers_thread_dict[identifier]
-      thread.join(timeout = 0.1)
-      initial_receive = None
-      send_users_answers()
-      initial_receive = None
+  listen_to_keyboard_thread = KeyboardEventsThread(socket, user_answer_dictionary, identifier, send_stop_call)
+  listen_to_keyboard_thread.start()
 
-  print("hello guys")
+  send_answers_to_server_thread = SendAnswersToServerThread(socket, send_users_answers, listen_to_keyboard_thread, identifier)
+  send_answers_to_server_thread.start()
+
+  while have_send_answer == False: continue
+  send_answers_to_server_thread.stop()
+  listen_to_keyboard_thread.join()
+  send_answers_to_server_thread.join()
+
+  results = socket.recv(4096)
+  results_dict = pickle.loads(results)
+
+  client_points = results_dict['current_identifier_points']
+  if results_dict['winner_identifier'] == identifier:
+    print("\nVocê obteve " + str(client_points) + " pontos e foi o vencedor!\n")
+  else:
+    print("Você obteve " + str(client_points) + " pontos e não foi o vencedor!")
+    print("Venceu o jogador " + results_dict['winner_identifier'] + " com " + str(results_dict['winner_points']) + " pontos.\n")
+  socket.close()
+  break
